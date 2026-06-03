@@ -1,7 +1,11 @@
 import axios from 'axios';
 
-// Get current hostname to allow access from other devices in the same network
+// Use environment variable for production, fallback to dynamic local IP for development
 const getApiBaseUrl = () => {
+  // VITE_API_URL will be set in Vercel/Netlify environment settings
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
   const hostname = window.location.hostname;
   return `http://${hostname}:5000/api`;
 };
