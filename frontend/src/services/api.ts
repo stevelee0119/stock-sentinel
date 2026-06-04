@@ -24,6 +24,7 @@ export interface StockData {
   change: number;
   changePercent: number;
   prevClose: number;
+  marketState?: string;
   history: StockHistory[];
 }
 

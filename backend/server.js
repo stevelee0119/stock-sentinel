@@ -9,6 +9,11 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 const STOCKS = [
   { name: '삼성전자', symbol: '005930.KS' },
   { name: 'SK하이닉스', symbol: '000660.KS' },
@@ -18,23 +23,25 @@ const STOCKS = [
 ];
 
 app.get('/api/stocks', async (req, res) => {
+  console.log(`[${new Date().toISOString()}] Fetching stock data...`);
   try {
     const results = await Promise.all(
       STOCKS.map(async (stock) => {
         try {
-          const quote = await yahooFinance.quote(stock.symbol);
+          // Fetch quote and chart in parallel for better performance
+          const [quote, chartData] = await Promise.all([
+            yahooFinance.quote(stock.symbol),
+            yahooFinance.chart(stock.symbol, {
+              period1: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+              period2: new Date(),
+              interval: '1d',
+            })
+          ]);
           
-          const end = new Date();
-          const start = new Date();
-          start.setDate(end.getDate() - 10); // 조금 더 넉넉하게 10일치
-          
-          const chartData = await yahooFinance.chart(stock.symbol, {
-            period1: start,
-            period2: end,
-            interval: '1d',
-          });
-
-          if (!quote || !chartData || !chartData.quotes) return null;
+          if (!quote || !chartData || !chartData.quotes) {
+            console.warn(`[WARN] Incomplete data for ${stock.name} (${stock.symbol})`);
+            return null;
+          }
 
           return {
             name: stock.name,
@@ -43,6 +50,7 @@ app.get('/api/stocks', async (req, res) => {
             change: quote.regularMarketChange,
             changePercent: quote.regularMarketChangePercent,
             prevClose: quote.regularMarketPreviousClose,
+            marketState: quote.marketState,
             history: chartData.quotes
               .filter(q => q.close !== undefined)
               .map(q => ({
@@ -51,18 +59,22 @@ app.get('/api/stocks', async (req, res) => {
               }))
           };
         } catch (err) {
-          console.error(`Error fetching ${stock.name} (${stock.symbol}):`, err.message);
+          console.error(`[ERROR] Failed to fetch ${stock.name} (${stock.symbol}):`, err.message);
           return null;
         }
       })
     );
 
-    // Filter out stocks that failed to fetch
     const filteredResults = results.filter(r => r !== null);
+    
+    if (filteredResults.length === 0) {
+      return res.status(503).json({ error: 'All stock data requests failed' });
+    }
+
     res.json(filteredResults);
   } catch (error) {
-    console.error('General server error:', error);
-    res.status(500).json({ error: 'Failed to fetch stock data' });
+    console.error('[CRITICAL] General server error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
