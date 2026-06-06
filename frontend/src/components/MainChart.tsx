@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { StockData } from '../services/api';
 import {
   LineChart,
@@ -17,7 +17,7 @@ interface MainChartProps {
 
 const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
-const MainChart: React.FC<MainChartProps> = ({ stocks }) => {
+const MainChart = ({ stocks }: MainChartProps) => {
   const chartData = useMemo(() => {
     if (stocks.length === 0) return [];
 

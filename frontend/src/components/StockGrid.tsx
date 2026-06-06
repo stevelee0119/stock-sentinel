@@ -13,7 +13,6 @@ const StockGrid: React.FC<StockGridProps> = ({ stocks }) => {
       {stocks.map((stock) => {
         const isPositive = stock.change > 0;
         const isNegative = stock.change < 0;
-        const isNeutral = stock.change === 0;
 
         return (
           <div 
